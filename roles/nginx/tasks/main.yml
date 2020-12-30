@@ -1,0 +1,58 @@
+---
+
+- name: Install Packages (Debian - Ubuntu)
+  become: yes
+  apt:
+    name: ['nmap', 'snmp', 'python2']
+    state: present
+    update_cache: true
+  
+    
+- name: Add NGINX repository 
+  block:
+    - name: Lookup distro variables to set the proper repo
+      include_vars: '{{ item }}'
+      with_first_found:
+        - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+        - "Default.yml"
+    - name: Add internal repo
+      become: yes
+      lineinfile:
+        path: /etc/apt/sources.list.d/nginx_repo.list
+        line: "{{ deb_nginx }}"
+        create: yes
+        state: present
+    - name: Add repo key
+      apt_key:
+        url: "https://nginx.org/keys/nginx_signing.key"
+        state: present
+    - name: Update cache
+      apt:
+        update_cache: true
+    - name: Install NGINX (Debian - Ubuntu)
+      become: yes
+      apt:
+        name: ['nginx']
+        state: present
+        update_cache: true
+    - name: Install NGINX related packages (Debian - Ubuntu)
+      become: yes
+      apt:
+        name: ['python-pip', 'libxml2-utils', 'jq']
+        state: present
+        force: yes
+        update_cache: true
+  #when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: enable configuration
+  file: >
+    dest=/etc/nginx/sites-enabled/default
+    src=/etc/nginx/sites-available/default
+    state=link
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: start Service
+  service:
+    name: nginx
+    state: started
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

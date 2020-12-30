@@ -1,0 +1,44 @@
+---
+  #
+  #
+  # Ejemplo AWS (Debian): #
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cmusica datacenter=aws region=us-east-1 ip=10.97.24.67"
+  # Ejemplo AWS (CentOS): 
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cmusica datacenter=aws region=us-east-1 ip=10.97.24.67 ostype=centos"
+  # Ejemplo QRO: 
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cvideo datacenter=qro region=default ip=10.20.13.83"
+  # Ejemplo Embratel: 
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cdrive datacenter=emb region=default ip=172.27.178.64"
+  # Ejemplo usuario SSH/Key custom:
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cvideo datacenter=aws region=us-east-1 ip=10.11.13.16 custom_ssh_user=ec2-user ssh_private_key=keys/production.pem"
+  # Ejemplo AWS para un zabbix-proxy: 
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cmusica datacenter=aws region=us-east-1 ip=10.97.24.67 zabbix_proxy=''"
+  # Ejemplo AWS para un zabbix-server: 
+  # ansible-playbook zabbix_agent.yml --extra-vars "producto=cmusica datacenter=aws region=us-east-1 ip=10.97.24.67 zabbix_server='' zabbix_hostmetadata=Zabbix_Server"
+  
+  - name: Conectando con el server
+    hosts: localhost
+    vars_files:
+      - "custom_vars/var-datacenter/var-{{ partition | default('default') }}-{{ producto }}-{{ datacenter }}-{{ region }}.yml"
+      - "custom_vars/var-environment/var-{{ env | default('prod') }}-{{ datacenter }}-{{ region }}.yml"
+    tasks:
+      - name: Añadir el host al inventario
+        add_host:
+         name={{ ip }}
+         groups=server_instance
+         ansible_ssh_user="{{ admin_username }}"
+         ansible_ssh_private_key_file= "{{ ssh_private_key }}"
+        tags:
+         - inv
+  
+  - name: Instalar/configurar el cliente de zabbix
+    hosts: server_instance
+    vars_files:
+      - "custom_vars/var-datacenter/var-{{ partition | default('default') }}-{{ producto }}-{{ datacenter }}-{{ region }}.yml"
+      - "custom_vars/var-environment/var-{{ env | default('prod') }}-{{ datacenter }}-{{ region }}.yml"
+    remote_user: "{{ 'centos' if (ostype|default('debian') == 'centos' and custom_ssh_user is not defined) else 'sg-ext' if datacenter == 'emb' else 'sg-ext' if datacenter == 'qro' else 'sg-ext' if datacenter == 'aws' else custom_ssh_user if custom_ssh_user is defined else 'admin' }}"
+    become: true
+    roles:
+  #    - common
+      - zabbix_agent_v2
+  

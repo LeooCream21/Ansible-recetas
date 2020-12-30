@@ -1,0 +1,183 @@
+---
+  # Variables que utiliza este rol:
+  # zabbix_proxy: Define el nombre del zabbix proxy para ser usado en la linea Server=/ServerActive= del archivo /etc/zabbix/zabbix_agentd.conf. Si esta variable es nula por linea de comandos entonces se trata de un build de zabbix-proxy y Server=/ServerActive= apuntan directamente al zabbix-server.
+  # zabbix_server: Define el nombre del zabbix server para ser usado en la linea "Server=" del archivo /etc/zabbix/zabbix_agentd.conf y en la linea "zabbix_api_url=" en el archivo deleteHostFromZabbix.py. Si esta variable es nula por linea de comandos entonces se trata de un build de zabbix-server y Server=/ServerActive= quedan como 127.0.0.1
+  # zabbix_hostmetadata: Define la metadata a ser utilizada en el archivo /etc/zabbix/zabbix_agentd.conf durante la registración del agente de zabbix (default=_GENERIC)
+  # zabbix_state: Define el estado del servicio de zabbix luego de la ejecución (default=started)
+  # zabbix_enabled: Define si el servicio de zabbix es habilitado para el próximo boot (default=yes)
+  
+  - import_role:
+      name: awscli
+  
+  ## Agrega repositorios, instala y configura {DEBIAN}- ASG and No-ASG ##
+  
+  - name: Add zabbix repository (Debian based for ASG and NO-ASG)
+    block:
+      - name: Lookup distro variables to set the proper repo
+        include_vars: '{{ item }}'
+        with_first_found:
+          - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+          - "default.yml"
+      - name: Add internal repo
+        lineinfile:
+          path: /etc/apt/sources.list.d/zabbix_repo.list
+          line: "{{ deb_zabbix }}"
+          create: yes
+          state: present
+      - name: Add repo key
+        apt_key:
+          url: "{{ mirror_url }}/local-files/pgp/zabbix-official-repo.key"
+          state: present
+      - name: Update cache
+        apt:
+          update_cache: true
+      - name: Install zabbix (Debian - Ubuntu)
+        become: yes
+        apt:
+          name: ['zabbix-agent']
+          state: present
+          update_cache: true
+      - name: Install zabbix related packages (Debian - Ubuntu)
+        become: yes
+        apt:
+          name: ['python-pip', 'libxml2-utils', 'jq']
+          state: present
+          force: yes
+          update_cache: true
+      - name: Install boto3 and botocore with pip3 module
+        pip:
+          name: 
+          - boto3
+          - botocore
+  
+  ## Agrega repositorios, instala y configura {CENTOS, REDHAT,ORACLE} - ASG and NO ASG ##
+  
+  - name: Add zabbix repository (CentOS/RedHat based for ASG and NO-ASG)
+    block:
+      - name: Copy zabbix repository file
+        template:
+          src: "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.repo"
+          dest: /etc/yum.repos.d/zabbix.repo
+          owner: root
+          group: root
+          mode: 0640
+        when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Amazon' or ansible_distribution == 'OracleLinux'
+      - name: Update cache
+        command: yum update --assumeno
+        failed_when: False
+        changed_when: False
+      - name: Install zabbix packages (CentOS- RedHat - Oracle)
+        become: true
+        yum:
+          name: ['zabbix-agent']
+          state: present
+          update_cache: true
+      - name: Install zabbix related packages (CentOS/RedHat/Oracle)
+        yum: 
+          name: ['jq']
+          state: present
+      - name: Install boto3 and botocore with pip3 module
+        pip:
+          name:
+          - boto3
+          - botocore
+  
+  
+  - name: Download Script from bucket S3
+    aws_s3:
+      bucket: dla-zabbix-services
+      object: zabbix_agent/scripts/zabbix_agent/install_scripts.sh
+      dest: /tmp/install_scripts.sh
+      aws_access_key: "{{ aws_access }}"
+      aws_secret_key: "{{ aws_secret }}"
+      mode: get
+  
+  - name: Change file ownership, group and permissions
+    become: yes
+    file:
+      path: /tmp/install_scripts.sh
+      mode: '0754'
+  
+  - name: run script
+    shell: /bin/bash install_scripts.sh >> log.txt
+    args:
+      chdir: /tmp
+  
+  
+  - name: Remove zabbix agent default config
+    file:
+      path: /etc/zabbix/zabbix_agentd.conf
+      state: absent
+  
+  
+  - name: Add config Zabbix ( based for NO-ASG)
+    block:
+      - name: Generate zabbix Agent config
+        blockinfile:
+          create: yes
+          owner: zabbix
+          mode: 644
+          path: /etc/zabbix/zabbix_agentd.conf
+          block: |
+              PidFile=/var/run/zabbix/zabbix_agentd.pid
+              LogType=file
+              LogFile=/var/log/zabbix/zabbix_agentd.log
+              LogFileSize=0
+              DebugLevel=3
+              EnableRemoteCommands=1
+              LogRemoteCommands=1
+              Server=zabbix-proxy-001,zabbix-server-001
+              ListenPort=10050
+              StartAgents=10
+              ServerActive=zabbix-proxy-001
+              Hostname={{ hostname}}
+              HostMetadata={{ zabbix_hostmetadata }}
+              RefreshActiveChecks=120
+              BufferSend=30
+              BufferSize=4096
+              MaxLinesPerSecond=50
+              Timeout=30
+              AllowRoot=1
+              User=zabbix
+              Include=/etc/zabbix/zabbix_agentd.d/
+              UnsafeUserParameters=1
+    when: asg_instance  == 'no-asg'
+  
+  
+  #####################################################
+  
+  - name: Install zabbix related packages (Amazon Linux)
+    package:
+      name: ['python-pip', 'jq']
+      state: present
+    when: ansible_distribution == 'Amazon'
+  
+  #####################################################
+  
+  - name: Modify zabbix user to allow login
+    user:
+      name: zabbix
+      shell: /bin/bash
+  
+  - name: Modify zabbix user to not allow login
+    user:
+      name: zabbix
+      shell: /bin/false
+  
+  - name: Enable/Start zabbix-agent service (legacy)
+    block:
+      - name: Enable/Start zabbix-agent service (legacy) as appropiate
+        service:
+          name: zabbix-agent
+          state: "{{ zabbix_state | default ('stopped') }}"
+          enabled: "{{ zabbix_enabled | default ('no') }}"
+    when: (((ansible_distribution == "CentOS") or (ansible_distribution == "RedHat") or (ansible_distribution == "OracleLinux")) and ansible_distribution_major_version == '6') or (((ansible_distribution == "Debian") or (ansible_distribution == "Ubuntu")) and ansible_distribution_major_version == '7') or (ansible_distribution == 'Amazon')
+  
+  - name: Enable/Start zabbix-agent service (systemd)
+    systemd:
+      name: zabbix-agent.service
+      state: "{{ zabbix_state | default ('stopped') }}"
+      enabled: "{{ zabbix_enabled | default ('no') }}"
+      masked: no
+    when: (((ansible_distribution == "CentOS") or (ansible_distribution == "RedHat") or (ansible_distribution == "OracleLinux")) and ansible_distribution_major_version >= '7') or (((ansible_distribution == "Debian") or (ansible_distribution == "Ubuntu")) and ansible_distribution_major_version >= '8')
+  

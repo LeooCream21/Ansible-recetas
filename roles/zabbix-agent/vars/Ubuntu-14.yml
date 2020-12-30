@@ -1,0 +1,1 @@
+deb_zabbix: "deb {{ mirror_url }}/zabbix/3.0/ubuntu trusty main"

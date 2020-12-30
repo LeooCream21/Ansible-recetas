@@ -1,0 +1,1 @@
+deb_nginx: "deb https://nginx.org/packages/ubuntu/ xenial nginx"

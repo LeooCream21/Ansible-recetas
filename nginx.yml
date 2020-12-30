@@ -1,0 +1,27 @@
+---
+  # Eejemplo para un zabbix Proxy
+  #  ansible-playbook  nginx.yml --extra-vars "ip=xx.xxx.xxx software=nginx"
+  
+- name: IP
+  hosts: localhost
+  vars_files:
+    - "custom_vars/var-{{ software }}.yml"
+  tasks:
+    - name: list
+      add_host:
+         name={{ ip }}
+         ansible_ssh_user= "{{ admin_username }}"
+         ansible_ssh_private_key_file= "{{ ssh_private_key }}"
+         groups=server_instance
+      tags:
+         - inv
+  
+- name: Instalar/configurar NGINX
+  hosts: server_instance
+  vars_files:
+    - "custom_vars/var-{{ software }}.yml"
+  gather_facts: no
+  remote_user: "{{ admin_username }}"
+  become: true
+  roles:
+    - nginx

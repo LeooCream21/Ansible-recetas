@@ -1,0 +1,51 @@
+---
+- name: Crear Directorios Ansible (Debian based) #OK EN ZABBIX-AGENT
+  block:
+    - name: Create /home/ubuntu/ansible
+      file:
+        path: /opt/zabbix
+        owner: ubuntu
+        group: ubuntu
+        mode: 0750
+        state: directory
+    - name: Create /home/ubuntu/ansible/roles
+      file:
+        path: /home/ubuntu/ansible/roles
+        owner: ubuntu
+        group: ubuntu
+        mode: 0750
+        state: directory
+    - name: Create /home/ubuntu/ansible/roles/node_js
+      file:
+        path: /home/ubuntu/ansible/roles/node_js
+        owner: ubuntu
+        group: ubuntu
+        mode: 0750
+        state: directory
+    - name: Create /home/ubuntu/ansible/roles/node_js/tasks
+      file:
+        path: /home/ubuntu/ansible/roles/node_js/tasks
+        owner: ubuntu
+        group: ubuntu
+        mode: 0750
+        state: directory
+    - name: Create /home/ubuntu/ansible/roles/node_js/vars
+      file:
+        path: /home/ubuntu/ansible/roles/node_js/vars
+        owner: ubuntu
+        group: ubuntu
+        mode: 0750
+        state: directory
+    - name: Touch Ubuntu-18.yml file 
+      file:
+        path: /home/ubuntu/ansible/roles/node_js/vars/Ubuntu-18.yml
+        state: touch
+
+
+- name: Copiar files de ansible
+  copy:
+    src: zabbix_ssh_config
+    dest: ~zabbix/.ssh/config
+    owner: zabbix
+    group: zabbix
+    mode: 0640

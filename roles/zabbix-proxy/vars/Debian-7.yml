@@ -1,0 +1,1 @@
+deb_nginx: "deb {{ mirror_url }}/zabbix/{{ zbx_version }}/debian wheezy main"

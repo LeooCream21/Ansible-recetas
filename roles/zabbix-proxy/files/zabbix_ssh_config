@@ -1,0 +1,4 @@
+Host git.dlatv.net
+IdentitiesOnly yes
+IdentityFile ~zabbix/.ssh/dlagit
+StrictHostKeyChecking no

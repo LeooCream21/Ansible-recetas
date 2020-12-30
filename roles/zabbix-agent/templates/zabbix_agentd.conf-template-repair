@@ -1,0 +1,20 @@
+{% if zabbix_proxy == '' %}
+Server={{ zabbix_server }}
+ServerActive={{ zabbix_server }}
+{% elif zabbix_server == '' %}
+Server=127.0.0.1
+ServerActive=127.0.0.1
+{% else %}
+Server={{ zabbix_proxy }},{{ zabbix_server }}
+ServerActive={{ zabbix_proxy }}
+{% endif %}
+HostMetadata={{ zabbix_hostmetadata | default ('_GENERIC') }}
+HostnameItem=system.run[hostname -f]
+AllowRoot=1
+Timeout=15
+UnsafeUserParameters=1
+EnableRemoteCommands=1
+Include=/etc/zabbix/zabbix_agentd.d/
+LogFileSize=0
+LogFile=/var/log/zabbix/zabbix_agentd.log
+PidFile=/var/run/zabbix/zabbix_agentd.pid

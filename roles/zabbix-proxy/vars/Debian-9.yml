@@ -1,0 +1,1 @@
+deb_zabbix: "deb {{ mirror_url }}/zabbix/{{ zbx_version }}/debian stretch main"

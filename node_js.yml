@@ -1,0 +1,9 @@
+- name: Instalar/configurar node JS
+  hosts: all
+  #vars_files:
+  #  - "custom_vars/var-datacenter/var-{{ partition | default('default') }}-{{ producto }}-{{ datacenter }}-{{ region }}.yml"
+  #remote_user: "{{ 'centos' if ostype|default('debian') == 'centos' else 'sg-ext' if datacenter == 'emb' else 'sg-ext' if datacenter == 'qro' else 'admin' }}"
+  #remote_user: "{{ 'centos' if (ostype|default('debian') == 'centos' and custom_ssh_user is not defined) else 'sg-ext' if datacenter == 'emb' else 'sg-ext' if datacenter == 'qro' else 'sg-ext' if datacenter == $
+  become: true
+  roles:
+    - node_js

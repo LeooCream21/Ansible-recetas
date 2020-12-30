@@ -1,0 +1,6 @@
+[zabbixrepo]
+name=Zabbix Repo
+baseurl=http://repo-mirror-001/zabbix/3.0/CentOS/6/x86_64/
+gpgcheck=0
+#gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+enabled=1

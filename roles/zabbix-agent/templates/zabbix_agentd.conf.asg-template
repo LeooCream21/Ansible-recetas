@@ -1,0 +1,17 @@
+Server={{ zabbix_proxy }},{{ zabbix_server }}
+ServerActive={{ zabbix_proxy }}
+HostMetadata={{ zabbix_hostmetadata }}
+{% if (datacenter is defined) and (datacenter == 'azr') %}
+HostnameItem=system.run[hostname -f]
+{% else %}
+HostnameItem=system.run[{{ zabbix_command }}.{{ zabbix_servicio }}{{ zabbix_silo }}{{ zabbix_producto }}{{ env | default ('prd') }}.{{ zabbix_region }}{{ datacenter }}.int.{{ zabbix_dominio }}com]
+{% endif %}
+AllowRoot=1
+Timeout=15
+UnsafeUserParameters=1
+EnableRemoteCommands=1
+Include=/etc/zabbix/zabbix_agentd.d/
+LogFileSize=0
+LogFile=/var/log/zabbix/zabbix_agentd.log
+PidFile=/var/run/zabbix/zabbix_agentd.pid
+DebugLevel=3

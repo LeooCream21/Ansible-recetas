@@ -1,0 +1,110 @@
+---
+    #zbx_version: Para definir version de zabbix a utilizar
+    
+    - name: Add zabbix repository (Debian based)
+      block:
+        - name: Lookup distro variables to set the proper repo
+          include_vars: '{{ item }}'
+          with_first_found:
+            - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+            - "default.yml"
+        - name: Add internal repo
+          lineinfile:
+            path: /etc/apt/sources.list.d/zabbix_repo.list
+            line: "{{ deb_zabbix }}"
+            create: yes
+            state: present
+        - name: Add repo key
+          apt_key:
+            url: "{{ mirror_url }}/local-files/pgp/zabbix-official-repo.key"
+            state: present
+        - name: Update cache
+          apt:
+            update_cache: true
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    
+    - name: Add zabbix repository (CentOS/RedHat based)
+      block:
+        - name: Copy zabbix repository file
+          copy:
+            src: "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.repo"
+            dest: /etc/yum.repos.d/zabbix.repo
+            owner: root
+            group: root
+            mode: 0640
+        - name: Update cache
+          command: yum update --assumeno
+          failed_when: False
+          changed_when: False
+      when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat' or ansible_distribution == 'Amazon' or ansible_distribution == 'OracleLinux'
+    
+    - name: Instalacion zabbix-proxy-sqlite3
+      become: true
+      apt:
+        name: ['zabbix-proxy-sqlite3']
+        state: present
+        update_cache: true
+    
+    - name: Remove zabbix proxy default config
+      file:
+        path: /etc/zabbix/zabbix_proxy.conf
+        state: absent  
+    
+    - name: Generate zabbix Proxy config
+      blockinfile:
+        create: yes
+        owner: root
+        mode: 644
+        path: /etc/zabbix/zabbix_proxy.conf
+        block: |
+            ProxyMode=0
+            Server={{ zabbix_server }}
+            ServerPort=10051
+            Hostname={{ hostname }}
+            ListenPort=10051
+            LogType=file
+            LogFile=/var/log/zabbix/zabbix_proxy.log
+            LogFileSize=0
+            DebugLevel=3
+            EnableRemoteCommands=1
+            LogRemoteCommands=1
+            PidFile=/var/run/zabbix/zabbix_proxy.pid
+            SocketDir=/var/run/zabbix
+            DBName=/var/lib/sqlite/zabbix_proxy
+            DBUser=zabbix
+            ProxyLocalBuffer=1
+            ProxyOfflineBuffer=1
+            HeartbeatFrequency=20
+            ConfigFrequency=60
+            DataSenderFrequency=1
+            StartPollers=400
+            StartIPMIPollers=0
+            StartPollersUnreachable=60
+            StartTrappers=5
+            StartPingers=40
+            StartDiscoverers=5
+            StartHTTPPollers=30
+            StartJavaPollers=0
+            StartVMwareCollectors=0
+            SNMPTrapperFile=/var/log/snmptrap/snmptrap.log
+            StartSNMPTrapper=0
+            HousekeepingFrequency=4
+            CacheSize=1G
+            StartDBSyncers=10
+            HistoryCacheSize=1G
+            Timeout=30
+            TrapperTimeout=30
+            ExternalScripts=/usr/lib/zabbix/externalscripts
+            FpingLocation=/usr/bin/fping
+            Fping6Location=/usr/bin/fping6
+            LogSlowQueries=3000
+            AllowRoot=1
+            User=zabbix
+    
+    
+    - name: Enable/Start zabbix-proxy service
+      service:
+        name: zabbix-proxy
+        state: stopped
+        enabled: yes
+    

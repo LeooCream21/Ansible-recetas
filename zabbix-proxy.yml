@@ -1,0 +1,26 @@
+---
+    # Eejemplo para un zabbix Proxy
+    #  ansible-playbook  zabbix-proxy.yml --extra-vars "ip=10.136.6.11 env=lab partition=carg producto=cvideo datacenter=azr servicio=zabbix-proxy region=eastus2 major=5 minor=1 patch=8"
+    
+    - name: IP
+      hosts: localhost
+      vars_files:
+        - "custom_vars/var-{{ software }}.yml"
+      tasks:
+        - name: list
+          add_host:
+           name={{ ip }}
+           ansible_ssh_user="{{ admin_username }}"
+           ansible_ssh_private_key_file="{{ ssh_private_key }}"
+           groups=server_instance
+          tags:
+           - inv
+    
+    - name: Instalar/configurar Zabbix Proxy
+      hosts: server_instance
+      vars_files:
+        - "custom_vars/var-{{ software }}.yml"
+      remote_user: "{{ admin_username if admin_username is defined else 'admin' }}"
+      become: true
+      roles:
+       - zabbix_proxy
